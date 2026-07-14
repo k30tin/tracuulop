@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tra Cứu Lớp Học</title>
+    <!-- Nhúng thư viện SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f4f7f6; 
+            padding: 20px; 
+            display: flex; 
+            justify-content: center; 
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            width: 100%; 
+            max-width: 500px; 
+        }
+        h2 { 
+            text-align: center; 
+            color: #333; 
+            margin-bottom: 5px;
+        }
+        .subtitle { 
+            text-align: center; 
+            color: #666; 
+            font-size: 14px; 
+            margin-bottom: 20px; 
+        }
+        input[type="text"] { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            font-size: 16px; 
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background-color: #28a745; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: bold; 
+            margin-top: 15px; 
+        }
+        button:hover { 
+            background-color: #218838; 
+        }
+        .result-item { 
+            background: #e9ecef; 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            border-radius: 6px; 
+            border-left: 5px solid #28a745; 
+            line-height: 1.6; 
+        }
+        .not-found { 
+            text-align: center; 
+            color: #dc3545; 
+            font-weight: bold; 
+        }
+        /* Mặc định ẩn form tìm kiếm để đợi tải dữ liệu */
+        #searchSection {
+            display: none;
+        }
+        #loading {
+            text-align: center;
+            color: #0056b3;
+            font-weight: bold;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Tra Cứu Lớp Học</h2>
+    <div class="subtitle">Hệ thống tra cứu thông tin học sinh</div>
+    
+    <!-- Thông báo đang tải file từ server -->
+    <div id="loading">Đang tải dữ liệu từ hệ thống, vui lòng đợi...</div>
+
+    <!-- Vùng tìm kiếm chỉ hiện khi đã tải xong file Excel -->
+    <div id="searchSection">
+        <input type="text" id="searchInput" placeholder="Nhập Số báo danh hoặc Họ tên..." onkeypress="handleKeyPress(event)">
+        <button onclick="searchStudent()">Tra Cứu</button>
+        <div id="result" style="margin-top: 20px;"></div>
+    </div>
+</div>
+
+<script>
+    let studentsData = [];
+
+    // Hàm tự động tải file bang.xlsx cùng thư mục khi mở trang web
+    async function loadExcelData() {
+        try {
+            // Sử dụng Fetch API để lấy file bang.xlsx trên server
+            const response = await fetch('bang.xlsx');
+            
+            if (!response.ok) {
+                throw new Error("Không tìm thấy file bang.xlsx trên máy chủ.");
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, {type: 'array'});
+            
+            // Lấy dữ liệu từ Sheet đầu tiên
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            studentsData = XLSX.utils.sheet_to_json(worksheet, {raw: false});
+            
+            // Tải xong: Ẩn chữ "Đang tải" và hiện form tra cứu
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('searchSection').style.display = 'block';
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('loading').innerHTML = '<span style="color:red;">Lỗi tải dữ liệu. Vui lòng báo cho quản trị viên.</span>';
+        }
+    }
+
+    // Gọi hàm tải dữ liệu ngay khi trang web khởi tạo
+    loadExcelData();
+
+    // Hàm bỏ dấu tiếng Việt
+    function removeAccents(str) {
+        if (!str) return "";
+        return str.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+
+    // Hàm tra cứu
+    function searchStudent() {
+        const input = document.getElementById('searchInput').value.trim();
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = ''; 
+
+        if (input === '') {
+            resultDiv.innerHTML = '<div class="not-found">Vui lòng nhập SBD hoặc Họ tên!</div>';
+            return;
+        }
+
+        const normalizedInput = removeAccents(input);
+
+        const filtered = studentsData.filter(student => {
+            const sbd = student['SBD'] ? student['SBD'].toString().trim() : '';
+            const name = student['Họ tên'] ? student['Họ tên'].toString() : '';
+            return sbd === input || removeAccents(name).includes(normalizedInput);
+        });
+
+        if (filtered.length > 0) {
+            filtered.forEach(student => {
+                const sbd = student['SBD'] || 'Không có';
+                const name = student['Họ tên'] || 'Không có';
+                const className = student['Lớp'] || 'Không có';
+                
+                resultDiv.innerHTML += `
+                    <div class="result-item">
+                        <strong>Họ tên:</strong> ${name} <br>
+                        <strong>SBD:</strong> ${sbd} <br>
+                        <strong>Lớp:</strong> ${className}
+                    </div>
+                `;
+            });
+        } else {
+            resultDiv.innerHTML = '<div class="not-found">Không tìm thấy học sinh phù hợp.</div>';
+        }
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            searchStudent();
+        }
+    }
+</script>
+
+</body>
+</html>
