@@ -135,7 +135,7 @@
 
     loadExcelData();
 
-    // Hàm loại bỏ dấu tiếng Việt để tìm kiếm tương đối
+    // Hàm loại bỏ dấu tiếng Việt để đối chiếu
     function removeAccents(str) {
         if (!str) return "";
         return str.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -152,9 +152,9 @@
         }
 
         const normalizedInput = removeAccents(input);
-        const isNumber = /^\d+$/.test(input); // Kiểm tra xem người dùng nhập toàn số (SBD) hay có chữ (Tên)
+        const isNumber = /^\d+$/.test(input); 
 
-        // Lọc dữ liệu: Chỉ tìm trong cột SBD (nếu nhập số) hoặc cột Họ Tên (nếu nhập chữ)
+        // Lọc dữ liệu: Khớp chính xác hoàn toàn (nguyên vẹn)
         const filtered = studentsData.filter(student => {
             let isMatch = false;
             
@@ -163,14 +163,14 @@
                 const valStr = value.toString().trim();
 
                 if (isNumber) {
-                    // Nếu nhập số, chỉ so sánh với những cột có chứa chữ "sbd" hoặc "báo danh"
+                    // Nếu nhập số: Yêu cầu khớp chính xác SBD
                     if (keyLower.includes('sbd') || keyLower.includes('báo danh')) {
                         if (valStr === input) isMatch = true;
                     }
                 } else {
-                    // Nếu nhập chữ, chỉ so sánh với những cột có chứa chữ "tên" hoặc "ten"
+                    // Nếu nhập chữ: Yêu cầu khớp chính xác Họ và Tên (vẫn hỗ trợ tìm không dấu/có dấu)
                     if (keyLower.includes('tên') || keyLower.includes('ten')) {
-                        if (removeAccents(valStr).includes(normalizedInput)) isMatch = true;
+                        if (removeAccents(valStr) === normalizedInput) isMatch = true;
                     }
                 }
             }
@@ -182,7 +182,6 @@
             filtered.forEach(student => {
                 let htmlContent = '<div class="result-item">';
                 
-                // Vẫn in ra toàn bộ thông tin các cột có dữ liệu của học sinh đó
                 for (const [key, value] of Object.entries(student)) {
                     if (value.toString().trim() !== "") {
                         htmlContent += `<strong>${key}:</strong> ${value} <br>`;
@@ -193,7 +192,6 @@
                 resultDiv.innerHTML += htmlContent;
             });
         } else {
-            // Thông báo lỗi tùy theo loại dữ liệu người dùng nhập
             if (isNumber) {
                 resultDiv.innerHTML = '<div class="not-found">SBD KHÔNG TỒN TẠI. Mời bạn kiểm tra và nhập lại!</div>';
             } else {
@@ -202,7 +200,6 @@
         }
     }
 
-    // Cho phép ấn Enter để tìm kiếm nhanh
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
             searchStudent();
