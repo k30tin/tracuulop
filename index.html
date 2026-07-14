@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRA CỨU THÔNG TIN LỚP HỌC</title>
+    <title>TRA CỨU THÔNG TIN LỚP 10</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { 
@@ -160,11 +160,10 @@
         const isClassFormat = /^\d{2}[a-zA-Z]\d*$/.test(input.replace(/\s/g, ''));
 
         if (isClassFormat) {
-            resultDiv.innerHTML = '<div class="warning-class">Hệ thống không hỗ trợ tra cứu theo danh sách lớp. Mời bạn nhập chính xác SBD hoặc Họ Tên!</div>';
+            resultDiv.innerHTML = '<div class="warning-class">Hệ thống không hỗ trợ tra cứu theo danh sách lớp. Mời bạn nhập SBD hoặc Họ Tên!</div>';
             return;
         }
 
-        // Lọc dữ liệu: Khớp nguyên vẹn (100%)
         const filtered = studentsData.filter(student => {
             let isMatch = false;
             
@@ -173,12 +172,14 @@
                 const valStr = value.toString().trim();
 
                 if (isNumber) {
+                    // Nếu nhập số (SBD): Vẫn yêu cầu khớp chính xác tuyệt đối
                     if (keyLower.includes('sbd') || keyLower.includes('báo danh')) {
                         if (valStr === input) isMatch = true;
                     }
                 } else {
+                    // Nếu nhập chữ (Tên): Hủy bỏ ràng buộc nguyên vẹn, chuyển về tìm kiếm tương đối (chứa chuỗi)
                     if (keyLower.includes('tên') || keyLower.includes('ten')) {
-                        if (removeAccents(valStr) === normalizedInput) isMatch = true;
+                        if (removeAccents(valStr).includes(normalizedInput)) isMatch = true;
                     }
                 }
             }
@@ -200,7 +201,7 @@
             if (isNumber) {
                 resultDiv.innerHTML = '<div class="not-found">SBD KHÔNG TỒN TẠI. Mời bạn kiểm tra và nhập lại!</div>';
             } else {
-                resultDiv.innerHTML = '<div class="not-found">Không tìm thấy tên trong danh sách. Mời bạn kiểm tra và nhập lại tên đầy đủ (nguyên vẹn)!</div>';
+                resultDiv.innerHTML = '<div class="not-found">Không tìm thấy thông tin. Mời bạn kiểm tra và nhập lại!</div>';
             }
         }
     }
