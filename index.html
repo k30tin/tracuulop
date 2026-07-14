@@ -85,12 +85,11 @@
 
 <div class="container">
     <h2>Tra Cứu Thông Tin</h2>
-    <div class="subtitle">Nhập bất kỳ thông tin nào để tìm kiếm</div>
+    <div class="subtitle">Nhập thông tin bất kỳ để tìm kiếm</div>
     
     <div id="loading">Đang tải cấu trúc dữ liệu mới, vui lòng đợi...</div>
 
     <div id="searchSection">
-        <!-- Đã đổi placeholder để phù hợp với việc tìm kiếm đa năng -->
         <input type="text" id="searchInput" placeholder="Ví dụ: SBD, tên, hoặc thông tin bất kỳ..." onkeypress="handleKeyPress(event)">
         <button onclick="searchStudent()">Tra Cứu</button>
         <div id="result" style="margin-top: 20px;"></div>
@@ -103,7 +102,6 @@
     // Tự động tải file bang_2.xlsx
     async function loadExcelData() {
         try {
-            // Cập nhật tên file cần đọc
             const response = await fetch('bang_2.xlsx');
             
             if (!response.ok) {
@@ -117,7 +115,7 @@
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // defval: "" giúp đọc cả những ô trống, không làm lệch cấu trúc
+            // Đọc dữ liệu, bao gồm cả những ô trống
             studentsData = XLSX.utils.sheet_to_json(worksheet, {defval: "", raw: false});
             
             document.getElementById('loading').style.display = 'none';
@@ -125,17 +123,19 @@
 
         } catch (error) {
             console.error(error);
-            document.getElementById('loading').innerHTML = '<span style="color:red;">Lỗi tải dữ liệu. Thầy nhớ kiểm tra lại đã upload file bang_2.xlsx lên GitHub chưa nhé.</span>';
+            document.getElementById('loading').innerHTML = '<span style="color:red;">Lỗi tải dữ liệu. Hãy kiểm tra lại đã upload file bang_2.xlsx lên GitHub chưa.</span>';
         }
     }
 
     loadExcelData();
 
+    // Hàm loại bỏ dấu tiếng Việt để tìm kiếm
     function removeAccents(str) {
         if (!str) return "";
         return str.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     }
 
+    // Hàm tra cứu đa năng
     function searchStudent() {
         const input = document.getElementById('searchInput').value.trim();
         const resultDiv = document.getElementById('result');
@@ -148,7 +148,7 @@
 
         const normalizedInput = removeAccents(input);
 
-        // Thuật toán quét toàn bộ các cột (keys) trong object thay vì fix cứng tên cột
+        // Quét toàn bộ các cột (keys) trong dữ liệu
         const filtered = studentsData.filter(student => {
             return Object.values(student).some(val => 
                 removeAccents(val).includes(normalizedInput)
@@ -159,9 +159,8 @@
             filtered.forEach(student => {
                 let htmlContent = '<div class="result-item">';
                 
-                // Duyệt qua tất cả các cặp Khóa (Tên cột) - Giá trị (Dữ liệu ô)
+                // Hiển thị tất cả các cột có dữ liệu
                 for (const [key, value] of Object.entries(student)) {
-                    // Bỏ qua nếu giá trị rỗng để giao diện gọn gàng hơn
                     if (value.toString().trim() !== "") {
                         htmlContent += `<strong>${key}:</strong> ${value} <br>`;
                     }
@@ -171,10 +170,16 @@
                 resultDiv.innerHTML += htmlContent;
             });
         } else {
-            resultDiv.innerHTML = '<div class="not-found">Không tìm thấy dữ liệu phù hợp.</div>';
+            // Kiểm tra xem chuỗi nhập vào có phải chỉ chứa số hay không (để báo lỗi SBD)
+            if (/^\d+$/.test(input)) {
+                resultDiv.innerHTML = '<div class="not-found">SBD KHÔNG TỒN TẠI</div>';
+            } else {
+                resultDiv.innerHTML = '<div class="not-found">Không tìm thấy thông tin phù hợp.</div>';
+            }
         }
     }
 
+    // Cho phép ấn Enter để tìm kiếm
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
             searchStudent();
