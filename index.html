@@ -24,13 +24,16 @@
         }
         h2 { 
             text-align: center; 
-            color: #333; 
+            color: #0056b3; 
             margin-bottom: 5px;
+            text-transform: uppercase;
         }
         .subtitle { 
             text-align: center; 
-            color: #666; 
-            font-size: 14px; 
+            color: #d9534f; 
+            font-size: 15px; 
+            font-weight: bold;
+            font-style: italic;
             margin-bottom: 20px; 
         }
         input[type="text"] { 
@@ -52,6 +55,7 @@
             font-size: 16px; 
             font-weight: bold; 
             margin-top: 15px; 
+            transition: 0.3s;
         }
         button:hover { 
             background-color: #218838; 
@@ -69,6 +73,9 @@
             text-align: center; 
             color: #dc3545; 
             font-weight: bold; 
+            background: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
         }
         #searchSection {
             display: none;
@@ -84,13 +91,13 @@
 <body>
 
 <div class="container">
-    <h2>Tra Cứu Thông Tin</h2>
-    <div class="subtitle">Nhập thông tin bất kỳ để tìm kiếm</div>
+    <h2>TRA CỨU THÔNG TIN LỚP 10</h2>
+    <div class="subtitle">(Mời bạn nhập Số báo danh hoặc Tên để tìm kiếm)</div>
     
-    <div id="loading">Đang tải cấu trúc dữ liệu mới, vui lòng đợi...</div>
+    <div id="loading">Đang tải dữ liệu, vui lòng đợi...</div>
 
     <div id="searchSection">
-        <input type="text" id="searchInput" placeholder="Ví dụ: SBD, tên, hoặc thông tin bất kỳ..." onkeypress="handleKeyPress(event)">
+        <input type="text" id="searchInput" placeholder="Ví dụ: 1001 hoặc Nguyễn Văn A" onkeypress="handleKeyPress(event)">
         <button onclick="searchStudent()">Tra Cứu</button>
         <div id="result" style="margin-top: 20px;"></div>
     </div>
@@ -115,7 +122,6 @@
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // Đọc dữ liệu, bao gồm cả những ô trống
             studentsData = XLSX.utils.sheet_to_json(worksheet, {defval: "", raw: false});
             
             document.getElementById('loading').style.display = 'none';
@@ -123,43 +129,60 @@
 
         } catch (error) {
             console.error(error);
-            document.getElementById('loading').innerHTML = '<span style="color:red;">Lỗi tải dữ liệu. Hãy kiểm tra lại đã upload file bang_2.xlsx lên GitHub chưa.</span>';
+            document.getElementById('loading').innerHTML = '<span style="color:red;">Lỗi tải dữ liệu. Hãy kiểm tra lại file Excel trên hệ thống.</span>';
         }
     }
 
     loadExcelData();
 
-    // Hàm loại bỏ dấu tiếng Việt để tìm kiếm
+    // Hàm loại bỏ dấu tiếng Việt để tìm kiếm tương đối
     function removeAccents(str) {
         if (!str) return "";
         return str.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     }
 
-    // Hàm tra cứu đa năng
     function searchStudent() {
         const input = document.getElementById('searchInput').value.trim();
         const resultDiv = document.getElementById('result');
         resultDiv.innerHTML = ''; 
 
         if (input === '') {
-            resultDiv.innerHTML = '<div class="not-found">Vui lòng nhập thông tin!</div>';
+            resultDiv.innerHTML = '<div class="not-found">Bạn chưa nhập thông tin. Mời bạn nhập lại!</div>';
             return;
         }
 
         const normalizedInput = removeAccents(input);
+        const isNumber = /^\d+$/.test(input); // Kiểm tra xem người dùng nhập toàn số (SBD) hay có chữ (Tên)
 
-        // Quét toàn bộ các cột (keys) trong dữ liệu
+        // Lọc dữ liệu: Chỉ tìm trong cột SBD (nếu nhập số) hoặc cột Họ Tên (nếu nhập chữ)
         const filtered = studentsData.filter(student => {
-            return Object.values(student).some(val => 
-                removeAccents(val).includes(normalizedInput)
-            );
+            let isMatch = false;
+            
+            for (const [key, value] of Object.entries(student)) {
+                const keyLower = key.toLowerCase();
+                const valStr = value.toString().trim();
+
+                if (isNumber) {
+                    // Nếu nhập số, chỉ so sánh với những cột có chứa chữ "sbd" hoặc "báo danh"
+                    if (keyLower.includes('sbd') || keyLower.includes('báo danh')) {
+                        if (valStr === input) isMatch = true;
+                    }
+                } else {
+                    // Nếu nhập chữ, chỉ so sánh với những cột có chứa chữ "tên" hoặc "ten"
+                    if (keyLower.includes('tên') || keyLower.includes('ten')) {
+                        if (removeAccents(valStr).includes(normalizedInput)) isMatch = true;
+                    }
+                }
+            }
+            return isMatch;
         });
 
+        // Hiển thị kết quả
         if (filtered.length > 0) {
             filtered.forEach(student => {
                 let htmlContent = '<div class="result-item">';
                 
-                // Hiển thị tất cả các cột có dữ liệu
+                // Vẫn in ra toàn bộ thông tin các cột có dữ liệu của học sinh đó
                 for (const [key, value] of Object.entries(student)) {
                     if (value.toString().trim() !== "") {
                         htmlContent += `<strong>${key}:</strong> ${value} <br>`;
@@ -170,16 +193,16 @@
                 resultDiv.innerHTML += htmlContent;
             });
         } else {
-            // Kiểm tra xem chuỗi nhập vào có phải chỉ chứa số hay không (để báo lỗi SBD)
-            if (/^\d+$/.test(input)) {
-                resultDiv.innerHTML = '<div class="not-found">SBD KHÔNG TỒN TẠI</div>';
+            // Thông báo lỗi tùy theo loại dữ liệu người dùng nhập
+            if (isNumber) {
+                resultDiv.innerHTML = '<div class="not-found">SBD KHÔNG TỒN TẠI. Mời bạn kiểm tra và nhập lại!</div>';
             } else {
-                resultDiv.innerHTML = '<div class="not-found">Không tìm thấy thông tin phù hợp.</div>';
+                resultDiv.innerHTML = '<div class="not-found">Không tìm thấy tên trong danh sách. Mời bạn kiểm tra và nhập lại!</div>';
             }
         }
     }
 
-    // Cho phép ấn Enter để tìm kiếm
+    // Cho phép ấn Enter để tìm kiếm nhanh
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
             searchStudent();
