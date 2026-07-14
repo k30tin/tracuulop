@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tra Cứu Lớp Học</title>
+    <title>Tra Cứu Thông Tin Học Sinh</title>
     <!-- Nhúng thư viện SheetJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -20,7 +20,7 @@
             border-radius: 8px; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
             width: 100%; 
-            max-width: 500px; 
+            max-width: 600px; 
         }
         h2 { 
             text-align: center; 
@@ -63,13 +63,13 @@
             border-radius: 6px; 
             border-left: 5px solid #28a745; 
             line-height: 1.6; 
+            word-wrap: break-word;
         }
         .not-found { 
             text-align: center; 
             color: #dc3545; 
             font-weight: bold; 
         }
-        /* Mặc định ẩn form tìm kiếm để đợi tải dữ liệu */
         #searchSection {
             display: none;
         }
@@ -84,15 +84,14 @@
 <body>
 
 <div class="container">
-    <h2>Tra Cứu Lớp Học</h2>
-    <div class="subtitle">Hệ thống tra cứu thông tin học sinh</div>
+    <h2>Tra Cứu Thông Tin</h2>
+    <div class="subtitle">Nhập bất kỳ thông tin nào để tìm kiếm</div>
     
-    <!-- Thông báo đang tải file từ server -->
-    <div id="loading">Đang tải dữ liệu từ hệ thống, vui lòng đợi...</div>
+    <div id="loading">Đang tải cấu trúc dữ liệu mới, vui lòng đợi...</div>
 
-    <!-- Vùng tìm kiếm chỉ hiện khi đã tải xong file Excel -->
     <div id="searchSection">
-        <input type="text" id="searchInput" placeholder="Nhập Số báo danh hoặc Họ tên..." onkeypress="handleKeyPress(event)">
+        <!-- Đã đổi placeholder để phù hợp với việc tìm kiếm đa năng -->
+        <input type="text" id="searchInput" placeholder="Ví dụ: SBD, tên, hoặc thông tin bất kỳ..." onkeypress="handleKeyPress(event)">
         <button onclick="searchStudent()">Tra Cứu</button>
         <div id="result" style="margin-top: 20px;"></div>
     </div>
@@ -101,80 +100,78 @@
 <script>
     let studentsData = [];
 
-    // Hàm tự động tải file bang.xlsx cùng thư mục khi mở trang web
+    // Tự động tải file bang_2.xlsx
     async function loadExcelData() {
         try {
-            // Sử dụng Fetch API để lấy file bang.xlsx trên server
-            const response = await fetch('bang.xlsx');
+            // Cập nhật tên file cần đọc
+            const response = await fetch('bang_2.xlsx');
             
             if (!response.ok) {
-                throw new Error("Không tìm thấy file bang.xlsx trên máy chủ.");
+                throw new Error("Không tìm thấy file bang_2.xlsx");
             }
 
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
             const workbook = XLSX.read(data, {type: 'array'});
             
-            // Lấy dữ liệu từ Sheet đầu tiên
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            studentsData = XLSX.utils.sheet_to_json(worksheet, {raw: false});
+            // defval: "" giúp đọc cả những ô trống, không làm lệch cấu trúc
+            studentsData = XLSX.utils.sheet_to_json(worksheet, {defval: "", raw: false});
             
-            // Tải xong: Ẩn chữ "Đang tải" và hiện form tra cứu
             document.getElementById('loading').style.display = 'none';
             document.getElementById('searchSection').style.display = 'block';
 
         } catch (error) {
             console.error(error);
-            document.getElementById('loading').innerHTML = '<span style="color:red;">Lỗi tải dữ liệu. Vui lòng báo cho quản trị viên.</span>';
+            document.getElementById('loading').innerHTML = '<span style="color:red;">Lỗi tải dữ liệu. Thầy nhớ kiểm tra lại đã upload file bang_2.xlsx lên GitHub chưa nhé.</span>';
         }
     }
 
-    // Gọi hàm tải dữ liệu ngay khi trang web khởi tạo
     loadExcelData();
 
-    // Hàm bỏ dấu tiếng Việt
     function removeAccents(str) {
         if (!str) return "";
         return str.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     }
 
-    // Hàm tra cứu
     function searchStudent() {
         const input = document.getElementById('searchInput').value.trim();
         const resultDiv = document.getElementById('result');
         resultDiv.innerHTML = ''; 
 
         if (input === '') {
-            resultDiv.innerHTML = '<div class="not-found">Vui lòng nhập SBD hoặc Họ tên!</div>';
+            resultDiv.innerHTML = '<div class="not-found">Vui lòng nhập thông tin!</div>';
             return;
         }
 
         const normalizedInput = removeAccents(input);
 
+        // Thuật toán quét toàn bộ các cột (keys) trong object thay vì fix cứng tên cột
         const filtered = studentsData.filter(student => {
-            const sbd = student['SBD'] ? student['SBD'].toString().trim() : '';
-            const name = student['Họ tên'] ? student['Họ tên'].toString() : '';
-            return sbd === input || removeAccents(name).includes(normalizedInput);
+            return Object.values(student).some(val => 
+                removeAccents(val).includes(normalizedInput)
+            );
         });
 
         if (filtered.length > 0) {
             filtered.forEach(student => {
-                const sbd = student['SBD'] || 'Không có';
-                const name = student['Họ tên'] || 'Không có';
-                const className = student['Lớp'] || 'Không có';
+                let htmlContent = '<div class="result-item">';
                 
-                resultDiv.innerHTML += `
-                    <div class="result-item">
-                        <strong>Họ tên:</strong> ${name} <br>
-                        <strong>SBD:</strong> ${sbd} <br>
-                        <strong>Lớp:</strong> ${className}
-                    </div>
-                `;
+                // Duyệt qua tất cả các cặp Khóa (Tên cột) - Giá trị (Dữ liệu ô)
+                for (const [key, value] of Object.entries(student)) {
+                    // Bỏ qua nếu giá trị rỗng để giao diện gọn gàng hơn
+                    if (value.toString().trim() !== "") {
+                        htmlContent += `<strong>${key}:</strong> ${value} <br>`;
+                    }
+                }
+                
+                htmlContent += '</div>';
+                resultDiv.innerHTML += htmlContent;
             });
         } else {
-            resultDiv.innerHTML = '<div class="not-found">Không tìm thấy học sinh phù hợp.</div>';
+            resultDiv.innerHTML = '<div class="not-found">Không tìm thấy dữ liệu phù hợp.</div>';
         }
     }
 
