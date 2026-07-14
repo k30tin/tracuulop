@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tra Cứu Thông Tin Học Sinh</title>
-    <!-- Nhúng thư viện SheetJS -->
+    <title>TRA CỨU THÔNG TIN LỚP HỌC</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { 
@@ -77,6 +76,14 @@
             padding: 10px;
             border-radius: 4px;
         }
+        .warning-class {
+            text-align: center; 
+            color: #856404; 
+            font-weight: bold; 
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+        }
         #searchSection {
             display: none;
         }
@@ -92,7 +99,7 @@
 
 <div class="container">
     <h2>TRA CỨU THÔNG TIN LỚP 10</h2>
-    <div class="subtitle">(Mời bạn nhập Số báo danh hoặc Tên để tìm kiếm)</div>
+    <div class="subtitle">(Mời bạn nhập Số báo danh hoặc Họ Tên để tìm kiếm)</div>
     
     <div id="loading">Đang tải dữ liệu, vui lòng đợi...</div>
 
@@ -106,14 +113,10 @@
 <script>
     let studentsData = [];
 
-    // Tự động tải file bang_2.xlsx
     async function loadExcelData() {
         try {
             const response = await fetch('bang_2.xlsx');
-            
-            if (!response.ok) {
-                throw new Error("Không tìm thấy file bang_2.xlsx");
-            }
+            if (!response.ok) throw new Error("Không tìm thấy file bang_2.xlsx");
 
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
@@ -135,7 +138,6 @@
 
     loadExcelData();
 
-    // Hàm loại bỏ dấu tiếng Việt để đối chiếu
     function removeAccents(str) {
         if (!str) return "";
         return str.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -153,8 +155,16 @@
 
         const normalizedInput = removeAccents(input);
         const isNumber = /^\d+$/.test(input); 
+        
+        // Nhận diện nếu học sinh nhập định dạng lớp (VD: 10A1, 11B2, 12a3...)
+        const isClassFormat = /^\d{2}[a-zA-Z]\d*$/.test(input.replace(/\s/g, ''));
 
-        // Lọc dữ liệu: Khớp chính xác hoàn toàn (nguyên vẹn)
+        if (isClassFormat) {
+            resultDiv.innerHTML = '<div class="warning-class">Hệ thống không hỗ trợ tra cứu theo danh sách lớp. Mời bạn nhập chính xác SBD hoặc Họ Tên!</div>';
+            return;
+        }
+
+        // Lọc dữ liệu: Khớp nguyên vẹn (100%)
         const filtered = studentsData.filter(student => {
             let isMatch = false;
             
@@ -163,12 +173,10 @@
                 const valStr = value.toString().trim();
 
                 if (isNumber) {
-                    // Nếu nhập số: Yêu cầu khớp chính xác SBD
                     if (keyLower.includes('sbd') || keyLower.includes('báo danh')) {
                         if (valStr === input) isMatch = true;
                     }
                 } else {
-                    // Nếu nhập chữ: Yêu cầu khớp chính xác Họ và Tên (vẫn hỗ trợ tìm không dấu/có dấu)
                     if (keyLower.includes('tên') || keyLower.includes('ten')) {
                         if (removeAccents(valStr) === normalizedInput) isMatch = true;
                     }
@@ -177,17 +185,14 @@
             return isMatch;
         });
 
-        // Hiển thị kết quả
         if (filtered.length > 0) {
             filtered.forEach(student => {
                 let htmlContent = '<div class="result-item">';
-                
                 for (const [key, value] of Object.entries(student)) {
                     if (value.toString().trim() !== "") {
                         htmlContent += `<strong>${key}:</strong> ${value} <br>`;
                     }
                 }
-                
                 htmlContent += '</div>';
                 resultDiv.innerHTML += htmlContent;
             });
@@ -195,7 +200,7 @@
             if (isNumber) {
                 resultDiv.innerHTML = '<div class="not-found">SBD KHÔNG TỒN TẠI. Mời bạn kiểm tra và nhập lại!</div>';
             } else {
-                resultDiv.innerHTML = '<div class="not-found">Không tìm thấy tên trong danh sách. Mời bạn kiểm tra và nhập lại!</div>';
+                resultDiv.innerHTML = '<div class="not-found">Không tìm thấy tên trong danh sách. Mời bạn kiểm tra và nhập lại tên đầy đủ (nguyên vẹn)!</div>';
             }
         }
     }
